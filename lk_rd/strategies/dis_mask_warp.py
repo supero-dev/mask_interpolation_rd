@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from lk_rd.geometry import clean_mask, expand_bbox, int_roi, mask_to_bbox
+from lk_rd.geometry import cap_mask_area, clean_mask, expand_bbox, int_roi, mask_to_bbox
 from lk_rd.strategies.base import PropagationStrategy
 from lk_rd.strategies.raw_lk import RawForwardLKStrategy
 from lk_rd.types import Prediction
@@ -33,7 +33,7 @@ class DISMaskWarpStrategy(PropagationStrategy):
         mask = self._warp_mask(local_mask, flow, prev.mask.shape, x1, y1)
         if not mask.any():
             return self._fallback.propagate(prev, prev_gray, gray, velocity)
-        mask = clean_mask(mask)
+        mask = cap_mask_area(clean_mask(mask), int(prev.mask.sum()))
         return Prediction(mask, mask_to_bbox(mask), 0.45, "dis_mask_warp")
 
     def _flow(self, prev_crop, next_crop):
@@ -53,5 +53,4 @@ class DISMaskWarpStrategy(PropagationStrategy):
         yi = np.rint(moved[:, 1]).astype(np.int32)
         valid = (xi >= 0) & (yi >= 0) & (xi < shape[1]) & (yi < shape[0])
         out[yi[valid], xi[valid]] = 1
-        out = cv2.dilate(out, np.ones((2, 2), dtype=np.uint8), iterations=1)
         return out

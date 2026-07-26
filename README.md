@@ -134,10 +134,12 @@ baseline was modified or an upstream dependency/runtime behavior changed.
 - `dis_mask_warp`: dense DIS optical flow over a local bbox ROI, then per-pixel
   warping of the whole previous mask. This avoids the single-affine-transform
   limitation and lets different parts of the mask move differently. If DIS is
-  unavailable or fails, it falls back to frozen `lk_raw`.
+  unavailable or fails, it falls back to frozen `lk_raw`. The implementation
+  caps propagated mask area to avoid recursive growth.
 - `piecewise_lk`: tracks contour points with LK, then moves each mask pixel by
   a weighted blend of nearby tracked contour-point shifts. This is a conservative
-  non-global warp: less rigid than affine, less free-form than dense DIS.
+  non-global warp: less rigid than affine, less free-form than dense DIS. The
+  implementation caps propagated mask area to avoid recursive growth.
 
 ## Adding a New Strategy
 

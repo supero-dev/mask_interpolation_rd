@@ -77,3 +77,19 @@ def clean_mask(mask):
     cv2.drawContours(out, [max(contours, key=cv2.contourArea)], -1, 1, cv2.FILLED)
     return out
 
+
+def cap_mask_area(mask, max_area):
+    mask = mask.astype(np.uint8)
+    area = int(mask.sum())
+    max_area = int(max_area)
+    if area <= max_area or max_area <= 0:
+        return mask
+    distances = cv2.distanceTransform(mask, cv2.DIST_L2, 3)
+    ys, xs = np.where(mask > 0)
+    if len(xs) <= max_area:
+        return mask
+    scores = distances[ys, xs]
+    keep = np.argpartition(scores, -max_area)[-max_area:]
+    out = np.zeros_like(mask)
+    out[ys[keep], xs[keep]] = 1
+    return out

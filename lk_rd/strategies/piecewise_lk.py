@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from lk_rd.geometry import clean_mask, mask_to_bbox, mask_to_contour
+from lk_rd.geometry import cap_mask_area, clean_mask, mask_to_bbox, mask_to_contour
 from lk_rd.strategies.base import PropagationStrategy
 from lk_rd.strategies.raw_lk import RawForwardLKStrategy
 from lk_rd.types import Prediction
@@ -28,7 +28,7 @@ class PiecewiseLKStrategy(PropagationStrategy):
         if len(src) < 8:
             return self._fallback.propagate(prev, prev_gray, gray, velocity)
         warped = self._warp_by_local_shifts(prev.mask, src, dst)
-        warped = clean_mask(warped)
+        warped = cap_mask_area(clean_mask(warped), int(prev.mask.sum()))
         if not warped.any():
             return self._fallback.propagate(prev, prev_gray, gray, velocity)
         return Prediction(warped, mask_to_bbox(warped), 0.45, "piecewise_lk")
@@ -77,7 +77,6 @@ class PiecewiseLKStrategy(PropagationStrategy):
         valid = (xi >= 0) & (yi >= 0) & (xi < mask.shape[1]) & (yi < mask.shape[0])
         out = np.zeros_like(mask, dtype=np.uint8)
         out[yi[valid], xi[valid]] = 1
-        out = cv2.dilate(out, np.ones((2, 2), dtype=np.uint8), iterations=1)
         return out
 
     def _nearest_indices(self, pixels, anchors, k):
