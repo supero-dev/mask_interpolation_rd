@@ -1,0 +1,11 @@
+method,offset,mask_iou,bbox_iou
+piecewise_anchor_adaptive_clean_lk,0,1.0,1.0
+piecewise_anchor_adaptive_clean_lk,1,0.8321171811422037,0.8242652634779613
+piecewise_anchor_adaptive_clean_lk,2,0.8099833200370933,0.835333506266276
+piecewise_anchor_adaptive_clean_lk,3,0.7874598366719303,0.8176027655601501
+piecewise_anchor_adaptive_clean_lk,4,0.773556941271944,0.824616547425588
+piecewise_anchor_adaptive_clean_lk,5,0.7551063129847665,0.8000444094340007
+piecewise_anchor_adaptive_clean_lk,6,0.7545093912689766,0.799336149295171
+piecewise_anchor_adaptive_clean_lk,7,0.740450347480466,0.7915338377157847
+piecewise_anchor_adaptive_clean_lk,8,0.7299308716122215,0.7842199464639028
+piecewise_anchor_adaptive_clean_lk,9,0.7191511499660334,0.7834415435791016

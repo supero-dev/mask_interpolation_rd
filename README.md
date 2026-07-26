@@ -158,12 +158,35 @@ baseline was modified or an upstream dependency/runtime behavior changed.
 - `piecewise_contour_clean_lk`: keeps the stronger `piecewise_lk` pixel motion,
   then extracts one largest contour, lightly simplifies it, fills it once, and
   caps area growth. This is the conservative smooth-contour variant.
+- `piecewise_anchor_adaptive_clean_lk`: same motion model as
+  `piecewise_contour_clean_lk`, but past anchor contours calibrate how much
+  contour simplification is safe. It preserves the current contour's location
+  and angle; anchors only tune the smoothing pressure.
 - `piecewise_conf_clean_soft_lk`, `piecewise_conf_clean_lk`,
   `piecewise_conf_clean_strict_lk`: confidence-gated versions of
   `piecewise_contour_clean_lk`. They reject locally unsupported pixels using
   forward-backward LK consistency and local intensity consistency before the
   single-contour cleanup. The strict variant drops more stale regions but may
   remove real drone pixels.
+- `piecewise_anchor_shape_clean_lk`,
+  `piecewise_anchor_shape_clean_strong_lk`: smooth the current contour toward
+  normalized shapes from past anchor contours only. The current contour's
+  centroid, angle, and scale are preserved; only the local shape is regularized.
+- `piecewise_anchor_radial_clean_lk`,
+  `piecewise_anchor_radial_clean_strong_lk`,
+  `piecewise_anchor_radial_clean_tiny_lk`: safer past-anchor shape prior that
+  preserves the current contour's point directions and only smooths point radii
+  toward radial profiles learned from past anchor contours.
+- `piecewise_anchor_smoothness_clean_lk`: uses past anchor radial profiles as a
+  roughness envelope for the current contour. On `V_DRONE_001`, this radial
+  reconstruction was too destructive and is kept as a negative result.
+
+Current anchor-smoothing result on `V_DRONE_001`, stride 10:
+`piecewise_anchor_adaptive_clean_lk` improves aggregate mask IoU from `0.764999`
+to `0.766918` and offset `+9` mask IoU from `0.716969` to `0.719151`, with a
+small bbox-IoU drop from `0.808996` to `0.806710`. Direct past-anchor
+shape/radial matching was much worse because stale anchor silhouettes get
+applied recursively.
 
 Current edge-snap result on `V_DRONE_001`, stride 10: the simple edge objectives
 are not reliable enough yet. `lk_mask_points_edge_shift_large` helps isolated

@@ -1,0 +1,2 @@
+method,non_anchor_mask_iou,non_anchor_bbox_iou,offset1_mask_iou,offset9_mask_iou,fps
+piecewise_anchor_adaptive_clean_lk,0.7669183724928479,0.8067104410242152,0.8321171811422037,0.7191511499660334,155.38101128776268

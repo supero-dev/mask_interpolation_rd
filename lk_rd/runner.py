@@ -21,6 +21,7 @@ def run_segmented(frames, gt_masks, gt_bboxes, stride, strategy):
         if anchor and mask_present(gt_masks[frame_id], gt_bboxes[frame_id]):
             bbox = gt_bboxes[frame_id].astype(np.float32)
             prev = Prediction(gt_masks[frame_id].astype(np.uint8), bbox, 1.0, "anchor")
+            strategy.on_anchor(frame_id, prev)
             velocity = update_velocity(last_anchor_frame, last_anchor_bbox, frame_id, bbox, velocity)
             last_anchor_frame = frame_id
             last_anchor_bbox = bbox.copy()
@@ -45,4 +46,3 @@ def update_velocity(prev_frame, prev_box, frame_id, box, velocity):
     gap = max(1, frame_id - prev_frame)
     measured = (box - prev_box) / float(gap)
     return (0.50 * velocity + 0.50 * measured).astype(np.float32)
-

@@ -1,0 +1,11 @@
+method,offset,mask_iou,bbox_iou
+piecewise_anchor_radial_clean_tiny_lk,0,1.0,1.0
+piecewise_anchor_radial_clean_tiny_lk,1,0.8047616124278022,0.8070923368136088
+piecewise_anchor_radial_clean_tiny_lk,2,0.7363046979109998,0.7848972221215565
+piecewise_anchor_radial_clean_tiny_lk,3,0.6744767260995232,0.7310486117998759
+piecewise_anchor_radial_clean_tiny_lk,4,0.6150476436476334,0.7008951048056284
+piecewise_anchor_radial_clean_tiny_lk,5,0.5572413716166443,0.6391522407531738
+piecewise_anchor_radial_clean_tiny_lk,6,0.5003938191253055,0.5893388509750366
+piecewise_anchor_radial_clean_tiny_lk,7,0.44226734646807453,0.5587642386555671
+piecewise_anchor_radial_clean_tiny_lk,8,0.3982369885468779,0.5129201968510946
+piecewise_anchor_radial_clean_tiny_lk,9,0.35385323752362097,0.49489154666662216

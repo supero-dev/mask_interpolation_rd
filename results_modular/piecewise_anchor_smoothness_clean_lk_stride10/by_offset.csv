@@ -1,0 +1,11 @@
+method,offset,mask_iou,bbox_iou
+piecewise_anchor_smoothness_clean_lk,0,1.0,1.0
+piecewise_anchor_smoothness_clean_lk,1,0.6505658439946598,0.76947553952535
+piecewise_anchor_smoothness_clean_lk,2,0.5893712445109924,0.7228190203507742
+piecewise_anchor_smoothness_clean_lk,3,0.5474370659477125,0.6945891280968984
+piecewise_anchor_smoothness_clean_lk,4,0.5051695347811497,0.67806323270003
+piecewise_anchor_smoothness_clean_lk,5,0.4729817178196541,0.6643369575341542
+piecewise_anchor_smoothness_clean_lk,6,0.4473494053441582,0.6277537971735001
+piecewise_anchor_smoothness_clean_lk,7,0.41961504771805896,0.6180443127950033
+piecewise_anchor_smoothness_clean_lk,8,0.394725368213863,0.5935715506474177
+piecewise_anchor_smoothness_clean_lk,9,0.36352707495947867,0.5826484024524688
