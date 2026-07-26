@@ -1,0 +1,17 @@
+{
+  "video": "/home/dev/dev/repo/Drone-detection-dataset/Output/drone_tracking_benchmark_20260723_reviewed_ok/videos/V_DRONE_001.mp4",
+  "masks": "/home/dev/dev/repo/Drone-detection-dataset/Output/drone_tracking_benchmark_20260723_reviewed_ok/reference/V_DRONE_001_samurai_target_masks.npz",
+  "stride": 10,
+  "strategy": "dis_mask_warp",
+  "source_counts": [
+    {
+      "source": "anchor",
+      "frames": 31
+    },
+    {
+      "source": "dis_mask_warp",
+      "frames": 270
+    }
+  ],
+  "frame_images": true
+}

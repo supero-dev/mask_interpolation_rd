@@ -1,0 +1,2 @@
+method,non_anchor_mask_iou,non_anchor_bbox_iou,offset1_mask_iou,offset9_mask_iou,fps
+dis_mask_warp,0.5073327295109835,0.6333491428030862,0.7847089103925474,0.3167507715808931,1189.4560404526205

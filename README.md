@@ -129,6 +129,16 @@ Offset mask IoU:
 These values should not change for `lk_raw`. If they change, either the frozen
 baseline was modified or an upstream dependency/runtime behavior changed.
 
+## Current Experimental Strategies
+
+- `dis_mask_warp`: dense DIS optical flow over a local bbox ROI, then per-pixel
+  warping of the whole previous mask. This avoids the single-affine-transform
+  limitation and lets different parts of the mask move differently. If DIS is
+  unavailable or fails, it falls back to frozen `lk_raw`.
+- `piecewise_lk`: tracks contour points with LK, then moves each mask pixel by
+  a weighted blend of nearby tracked contour-point shifts. This is a conservative
+  non-global warp: less rigid than affine, less free-form than dense DIS.
+
 ## Adding a New Strategy
 
 Create a new file, for example:
