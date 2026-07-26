@@ -156,6 +156,14 @@ baseline was modified or an upstream dependency/runtime behavior changed.
   refined by a lightweight foreground/background LAB color scorer. Foreground
   seeds come from the LK core, background seeds from a ring outside the LK
   contour, and only pixels connected to the core inside the LK band survive.
+- `lk_edge_patch_filter`, `lk_edge_patch_filter_strict`: raw contour LK with
+  boundary/non-core patches vetoed when their local LAB/texture patch looks more
+  like the background ring than the drone interior. These strategies never grow
+  the LK mask.
+- `lk_edge_patch_region`, `lk_edge_patch_region_strict`: patch-scored
+  foreground/background filtering clipped strictly inside the LK contour. This
+  is more aggressive and useful as a clutter-safe visual profile, but it can
+  trim real drone boundary pixels.
 - `piecewise_lk`: tracks contour points with LK, then moves each mask pixel by
   a weighted blend of nearby tracked contour-point shifts. This is a conservative
   non-global warp: less rigid than affine, less free-form than dense DIS. The
@@ -212,6 +220,13 @@ Current segmentation result on `V_DRONE_001`, stride 10:
 `0.755549`. It also improves the frame `145-149` drift slice where raw LK grabs
 too much sky. GrabCut alone was much weaker unless heavily gated; color-region
 foreground/background scoring is a better fit for these tiny drone masks.
+
+Current edge-patch result on `V_DRONE_001`, stride 10:
+`lk_edge_patch_filter` improves raw LK more modestly, from `0.757047` to
+`0.762480` mask IoU and from `0.698877` to `0.706166` offset `+9` mask IoU,
+while never expanding past the LK contour. `lk_edge_patch_region` scores worse
+overall (`0.750202` mask IoU) but improves the difficult frame `143-149` slice
+because it trims clutter-looking non-core patches instead of growing into them.
 
 Current edge-snap result on `V_DRONE_001`, stride 10: the simple edge objectives
 are not reliable enough yet. `lk_mask_points_edge_shift_large` helps isolated

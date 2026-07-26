@@ -1,0 +1,2 @@
+method,non_anchor_mask_iou,non_anchor_bbox_iou,offset1_mask_iou,offset9_mask_iou,fps
+lk_edge_patch_filter,0.7624799426734697,0.8019189567477615,0.833382052109679,0.7061661571313762,45.81836998541388

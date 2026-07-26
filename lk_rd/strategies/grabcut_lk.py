@@ -250,6 +250,227 @@ class LKColorRegionStrictStrategy(LKColorRegionStrategy):
     max_area_growth = 1.08
 
 
+class LKEdgePatchFilterStrategy(LKGrabCutStrategy):
+    """Raw contour LK with boundary patches vetoed by interior color/texture."""
+
+    name = "lk_edge_patch_filter"
+    core_erode = 3
+    edge_erode = 5
+    patch_size = 7
+    color_threshold = 3.2
+    hard_color_threshold = 4.8
+    texture_threshold = 2.6
+    background_margin = 0.35
+    motion_support_radius = 2
+    min_lk_overlap = 0.62
+    min_area_ratio = 0.45
+    max_area_growth = 1.02
+
+    def propagate_frame(self, prev, prev_frame, frame, prev_gray, gray, velocity):
+        lk = self._lk_prediction(prev, prev_gray, gray, velocity)
+        if lk.bbox is None or not lk.mask.any():
+            return lk
+        refined = self._edge_patch_refine(prev_frame, frame, prev.mask, lk.mask, lk.points)
+        if refined is None:
+            return Prediction(lk.mask, lk.bbox, 0.35, f"{self.name}_lk")
+        return Prediction(refined, mask_to_bbox(refined), 0.50, self.name)
+
+    def _edge_patch_refine(self, prev_frame, frame, prev_mask, lk_mask, motion_points):
+        core = self._interior_core(lk_mask)
+        if not core.any():
+            return None
+        lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB).astype(np.float32)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(np.float32)
+        bg_seed = self._background_ring(lk_mask)
+        model = self._appearance_model(prev_frame, prev_mask, lab, gray, core, bg_seed)
+        if model is None:
+            return None
+
+        color_dist = self._patch_color_distance(lab, model["fg"])
+        bg_dist = self._patch_color_distance(lab, model["bg"]) if model["bg"] is not None else None
+        texture_dist = self._patch_texture_distance(gray, model)
+        boundary = (lk_mask > 0) & (core == 0)
+        motion_support = self._motion_support(lk_mask.shape, motion_points)
+        color_bad = color_dist > self.color_threshold
+        bg_like = bg_dist is not None and (bg_dist + self.background_margin < color_dist)
+        texture_bad = texture_dist > self.texture_threshold
+        hard_bad = color_dist > self.hard_color_threshold
+        reject = boundary & (hard_bad | (bg_like & (color_bad | texture_bad | ~motion_support)) | (color_bad & texture_bad & ~motion_support))
+
+        refined = lk_mask.copy().astype(np.uint8)
+        refined[reject] = 0
+        refined[core > 0] = 1
+        refined = self._connected_to_core(refined, core)
+        refined = clean_mask(refined)
+        if not self._patch_acceptable(refined, lk_mask):
+            return None
+        return refined
+
+    def _appearance_model(self, prev_frame, prev_mask, lab, gray, current_core, bg_seed):
+        lab_values = [lab[current_core > 0]]
+        texture_values = [self._local_std(gray)[current_core > 0]]
+        if prev_frame is not None and prev_mask is not None and prev_mask.any():
+            prev_core = self._interior_core(prev_mask)
+            if prev_core.any():
+                prev_lab = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2LAB).astype(np.float32)
+                prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY).astype(np.float32)
+                lab_values.append(prev_lab[prev_core > 0])
+                texture_values.append(self._local_std(prev_gray)[prev_core > 0])
+        values = np.concatenate([v for v in lab_values if len(v)], axis=0)
+        textures = np.concatenate([v for v in texture_values if len(v)], axis=0)
+        if len(values) < 6 or len(textures) < 6:
+            return None
+        bg_model = None
+        bg_values = lab[bg_seed > 0]
+        if len(bg_values) >= 12:
+            bg_model = self._lab_model(bg_values)
+        return {
+            "fg": self._lab_model(values),
+            "bg": bg_model,
+            "texture_mean": float(np.median(textures)),
+            "texture_scale": float(max(4.0, np.percentile(np.abs(textures - np.median(textures)), 75) * 1.4826)),
+        }
+
+    def _patch_color_distance(self, lab, model):
+        mean = cv2.blur(lab, (self.patch_size, self.patch_size))
+        diff = (mean - model["mean"]) / model["scale"]
+        return np.sqrt((diff * diff).sum(axis=2))
+
+    def _patch_texture_distance(self, gray, model):
+        texture = cv2.blur(self._local_std(gray), (self.patch_size, self.patch_size))
+        return np.abs(texture - model["texture_mean"]) / model["texture_scale"]
+
+    def _local_std(self, gray):
+        mean = cv2.blur(gray, (self.patch_size, self.patch_size))
+        mean_sq = cv2.blur(gray * gray, (self.patch_size, self.patch_size))
+        return np.sqrt(np.maximum(0.0, mean_sq - mean * mean))
+
+    def _interior_core(self, mask):
+        core = self._erode(mask, self.core_erode)
+        if int(core.sum()) >= 6:
+            return core
+        distance = cv2.distanceTransform(mask.astype(np.uint8), cv2.DIST_L2, 3)
+        if distance.max() <= 0:
+            return mask.astype(np.uint8)
+        return (distance >= max(1.0, float(distance.max()) * 0.45)).astype(np.uint8)
+
+    def _background_ring(self, mask):
+        near = self._dilate(mask, max(3, self.fg_dilate))
+        far = self._dilate(mask, max(self.bg_dilate, self.fg_dilate + 4))
+        return ((far > 0) & (near == 0)).astype(np.uint8)
+
+    def _motion_support(self, shape, points):
+        support = np.zeros(shape, dtype=np.uint8)
+        for point in points:
+            x, y = np.rint(point).astype(np.int32)
+            if 0 <= x < shape[1] and 0 <= y < shape[0]:
+                cv2.circle(support, (int(x), int(y)), self.motion_support_radius, 1, -1)
+        return support.astype(bool)
+
+    def _connected_to_core(self, mask, core):
+        if not mask.any():
+            return mask
+        count, labels = cv2.connectedComponents(mask.astype(np.uint8), 8)
+        if count <= 1:
+            return mask
+        core_labels = np.unique(labels[core > 0])
+        keep = np.isin(labels, core_labels[core_labels > 0])
+        return keep.astype(np.uint8)
+
+    def _robust_scale(self, values, floor):
+        median = np.median(values, axis=0)
+        mad = np.median(np.abs(values - median), axis=0) * 1.4826
+        return np.maximum(mad, floor)
+
+    def _lab_model(self, values):
+        return {
+            "mean": np.median(values, axis=0),
+            "scale": self._robust_scale(values, floor=8.0),
+        }
+
+    def _patch_acceptable(self, candidate, lk_mask):
+        area = int(candidate.sum())
+        lk_area = max(1, int(lk_mask.sum()))
+        if area < int(lk_area * self.min_area_ratio):
+            return False
+        if area > int(lk_area * self.max_area_growth):
+            return False
+        return mask_iou(candidate, lk_mask) >= self.min_lk_overlap
+
+
+class LKEdgePatchFilterStrictStrategy(LKEdgePatchFilterStrategy):
+    name = "lk_edge_patch_filter_strict"
+    color_threshold = 2.2
+    hard_color_threshold = 3.4
+    texture_threshold = 1.8
+    background_margin = -0.05
+    motion_support_radius = 0
+    min_lk_overlap = 0.35
+    min_area_ratio = 0.25
+
+
+class LKEdgePatchRegionStrategy(LKColorRegionStrategy):
+    name = "lk_edge_patch_region"
+    max_area_growth = 1.00
+    min_lk_overlap = 0.55
+    fg_erode = 2
+    fg_dilate = 5
+    bg_dilate = 17
+    patch_size = 7
+    score_margin = 0.20
+
+    def _grabcut_refine(self, frame, lk_mask, motion_points, previous_area):
+        height, width = lk_mask.shape[:2]
+        roi_box = expand_bbox(mask_to_bbox(lk_mask), self.roi_scale, width, height)
+        if roi_box is None:
+            return None
+        x1, y1, x2, y2 = np.rint(roi_box).astype(np.int32)
+        crop = frame[y1:y2, x1:x2]
+        mask_roi = lk_mask[y1:y2, x1:x2].astype(np.uint8)
+        if crop.size == 0 or not mask_roi.any():
+            return None
+
+        lab = cv2.cvtColor(crop, cv2.COLOR_BGR2LAB).astype(np.float32)
+        core = self._erode(mask_roi, self.fg_erode)
+        if int(core.sum()) < 6:
+            core = mask_roi
+        near = self._dilate(mask_roi, self.fg_dilate)
+        far = self._dilate(mask_roi, self.bg_dilate)
+        bg = ((far > 0) & (near == 0)).astype(np.uint8)
+        if int(bg.sum()) < 12:
+            return None
+
+        fg_dist = self._patch_color_distance(lab, core > 0)
+        bg_dist = self._patch_color_distance(lab, bg > 0)
+        selected = ((fg_dist + self.score_margin) < bg_dist) & (mask_roi > 0)
+        selected |= core > 0
+        selected = self._connected_to_core(selected.astype(np.uint8), core)
+
+        out = np.zeros_like(lk_mask, dtype=np.uint8)
+        out[y1:y2, x1:x2] = selected
+        out = clean_mask(out)
+        if not self._acceptable(out, lk_mask, previous_area):
+            return None
+        return out
+
+    def _patch_color_distance(self, lab, seed):
+        values = lab[seed]
+        if len(values) == 0:
+            return np.full(lab.shape[:2], np.inf, dtype=np.float32)
+        mean = np.median(values, axis=0)
+        scale = np.maximum(np.median(np.abs(values - mean), axis=0) * 1.4826, 8.0)
+        patch = cv2.blur(lab, (self.patch_size, self.patch_size))
+        diff = (patch - mean) / scale
+        return np.sqrt((diff * diff).sum(axis=2))
+
+
+class LKEdgePatchRegionStrictStrategy(LKEdgePatchRegionStrategy):
+    name = "lk_edge_patch_region_strict"
+    min_lk_overlap = 0.40
+    score_margin = 0.05
+    patch_size = 9
+
+
 class _LKState:
     def __init__(self, mask, bbox, points, good_ratio, median_fb_error):
         self.mask = mask
