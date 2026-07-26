@@ -162,6 +162,13 @@ baseline was modified or an upstream dependency/runtime behavior changed.
   `piecewise_contour_clean_lk`, but past anchor contours calibrate how much
   contour simplification is safe. It preserves the current contour's location
   and angle; anchors only tune the smoothing pressure.
+- `piecewise_anchor_curvature_clean_lk`: remembers past-anchor curvature
+  sequences and smooths only unexpected local curvature spikes. Kept
+  conservative because full contour reconstruction from curvature was too
+  destructive.
+- `piecewise_anchor_corner_clean_lk`: remembers how many contour corners/curve
+  events past anchors can preserve without changing the anchor mask too much,
+  then caps unexpected extra current-frame contour complexity.
 - `piecewise_conf_clean_soft_lk`, `piecewise_conf_clean_lk`,
   `piecewise_conf_clean_strict_lk`: confidence-gated versions of
   `piecewise_contour_clean_lk`. They reject locally unsupported pixels using
@@ -182,11 +189,13 @@ baseline was modified or an upstream dependency/runtime behavior changed.
   reconstruction was too destructive and is kept as a negative result.
 
 Current anchor-smoothing result on `V_DRONE_001`, stride 10:
-`piecewise_anchor_adaptive_clean_lk` improves aggregate mask IoU from `0.764999`
-to `0.766918` and offset `+9` mask IoU from `0.716969` to `0.719151`, with a
-small bbox-IoU drop from `0.808996` to `0.806710`. Direct past-anchor
-shape/radial matching was much worse because stale anchor silhouettes get
-applied recursively.
+`piecewise_anchor_corner_clean_lk` improves aggregate mask IoU from `0.764999`
+to `0.767912` and offset `+9` mask IoU from `0.716969` to `0.721869`, with a
+bbox-IoU drop from `0.808996` to `0.800882`. It is the best smoothing-only
+variant so far, but it does not fix the frame `140-149` drift slice; direct
+motion failure still needs better point support or local evidence rejection.
+Direct past-anchor shape/radial matching was much worse because stale anchor
+silhouettes get applied recursively.
 
 Current edge-snap result on `V_DRONE_001`, stride 10: the simple edge objectives
 are not reliable enough yet. `lk_mask_points_edge_shift_large` helps isolated

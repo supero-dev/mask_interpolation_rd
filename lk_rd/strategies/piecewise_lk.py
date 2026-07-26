@@ -286,6 +286,211 @@ class PiecewiseAnchorAdaptiveCleanLKStrategy(PiecewiseContourCleanLKStrategy):
         return best
 
 
+class PiecewiseAnchorCurvatureCleanLKStrategy(PiecewiseContourCleanLKStrategy):
+    """Piecewise LK with local wiggle removal guided by past anchor curvature."""
+
+    name = "piecewise_anchor_curvature_clean_lk"
+    point_count = 128
+    curvature_ratio = 3.0
+    curvature_extra = 0.24
+    spike_floor = 0.45
+    smooth_passes = 1
+    preserve_iou = 0.985
+    approx_epsilon_ratio = 0.004
+    max_anchor_profiles = 3
+
+    def __init__(self):
+        super().__init__()
+        self._anchor_profiles = []
+
+    def on_anchor(self, frame_id, prediction):
+        contour = mask_to_contour(prediction.mask)
+        if contour is None:
+            return
+        points = self._resample_closed(contour.reshape(-1, 2).astype(np.float32), self.point_count)
+        self._anchor_profiles.append(self._smooth_profile(self._curvature(points), 2))
+        self._anchor_profiles = self._anchor_profiles[-self.max_anchor_profiles :]
+
+    def propagate(self, prev, prev_gray, gray, velocity):
+        pred = super().propagate(prev, prev_gray, gray, velocity)
+        if pred.source != PiecewiseContourCleanLKStrategy.name:
+            return pred
+        return Prediction(pred.mask, pred.bbox, pred.confidence, self.name)
+
+    def _single_smooth_contour(self, mask, previous_area):
+        contour = mask_to_contour(mask)
+        if contour is None:
+            return np.zeros_like(mask, dtype=np.uint8)
+        refined = self._curvature_refined_mask(mask, contour)
+        if refined is not None:
+            contour = mask_to_contour(refined)
+        if contour is None:
+            return np.zeros_like(mask, dtype=np.uint8)
+        perimeter = cv2.arcLength(contour, True)
+        epsilon = max(0.5, self.approx_epsilon_ratio * perimeter)
+        contour = cv2.approxPolyDP(contour, epsilon, True).astype(np.float32)
+        contour = self._limit_area(contour, previous_area)
+        out = np.zeros_like(mask, dtype=np.uint8)
+        cv2.drawContours(out, [contour.astype(np.int32)], -1, 1, cv2.FILLED)
+        return clean_mask(out)
+
+    def _curvature_refined_mask(self, mask, contour):
+        if not self._anchor_profiles:
+            return None
+        points = self._resample_closed(contour.reshape(-1, 2).astype(np.float32), self.point_count)
+        current = self._curvature(points)
+        expected = self._aligned_expected_curvature(current)
+        spikes = self._unexpected_spikes(current, expected)
+        if not spikes.any():
+            return None
+        refined = self._smooth_points_at(points, self._spread(spikes, 1))
+        out = np.zeros_like(mask, dtype=np.uint8)
+        cv2.drawContours(out, [refined.reshape(-1, 1, 2).astype(np.int32)], -1, 1, cv2.FILLED)
+        out = clean_mask(out)
+        if not out.any() or mask_iou(out, mask) < self.preserve_iou:
+            return None
+        return out
+
+    def _aligned_expected_curvature(self, current):
+        expected = np.mean(np.stack(self._anchor_profiles, axis=0), axis=0)
+        best = expected
+        best_error = float("inf")
+        smooth_current = self._smooth_profile(current, 2)
+        for candidate in (expected, expected[::-1]):
+            for shift in range(len(candidate)):
+                rolled = np.roll(candidate, shift)
+                error = float(((rolled - smooth_current) ** 2).mean())
+                if error < best_error:
+                    best = rolled
+                    best_error = error
+        return best
+
+    def _unexpected_spikes(self, current, expected):
+        high = current > np.maximum(self.spike_floor, expected * self.curvature_ratio + self.curvature_extra)
+        isolated = current > self._smooth_profile(current, 2) + self.curvature_extra
+        return high & isolated
+
+    def _smooth_points_at(self, points, mask):
+        out = points.copy()
+        weights = mask.astype(np.float32)[:, None]
+        for _ in range(self.smooth_passes):
+            local = (np.roll(out, 1, axis=0) + 2.0 * out + np.roll(out, -1, axis=0)) * 0.25
+            out = out * (1.0 - weights) + local * weights
+        return out
+
+    def _curvature(self, points):
+        prev_vec = points - np.roll(points, 1, axis=0)
+        next_vec = np.roll(points, -1, axis=0) - points
+        prev_vec /= np.maximum(np.linalg.norm(prev_vec, axis=1, keepdims=True), 1e-6)
+        next_vec /= np.maximum(np.linalg.norm(next_vec, axis=1, keepdims=True), 1e-6)
+        dot = np.clip((prev_vec * next_vec).sum(axis=1), -1.0, 1.0)
+        return np.arccos(dot).astype(np.float32)
+
+    def _smooth_profile(self, values, radius):
+        out = values.astype(np.float32).copy()
+        for shift in range(1, radius + 1):
+            out += np.roll(values, shift) + np.roll(values, -shift)
+        return out / float(radius * 2 + 1)
+
+    def _spread(self, flags, radius):
+        out = flags.copy()
+        for shift in range(1, radius + 1):
+            out |= np.roll(flags, shift) | np.roll(flags, -shift)
+        return out
+
+    def _resample_closed(self, points, count):
+        if len(points) == 0:
+            return points
+        closed = np.vstack([points, points[0]])
+        seg = np.linalg.norm(np.diff(closed, axis=0), axis=1)
+        total = float(seg.sum())
+        if total <= 0:
+            return np.repeat(points[:1], count, axis=0)
+        cumulative = np.concatenate([[0.0], np.cumsum(seg)])
+        targets = np.linspace(0.0, total, count, endpoint=False)
+        out = []
+        for target in targets:
+            idx = int(np.searchsorted(cumulative, target, side="right") - 1)
+            idx = min(idx, len(points) - 1)
+            denom = max(1e-6, cumulative[idx + 1] - cumulative[idx])
+            alpha = (target - cumulative[idx]) / denom
+            out.append(closed[idx] * (1.0 - alpha) + closed[idx + 1] * alpha)
+        return np.asarray(out, dtype=np.float32)
+
+
+class PiecewiseAnchorCornerCleanLKStrategy(PiecewiseContourCleanLKStrategy):
+    """Piecewise LK with contour complexity capped by past anchor contours."""
+
+    name = "piecewise_anchor_corner_clean_lk"
+    approx_epsilon_ratio = 0.004
+    anchor_candidates = (0.002, 0.003, 0.004, 0.005, 0.006, 0.008, 0.010)
+    anchor_min_iou = 0.965
+    current_min_iou = 0.960
+    complexity_margin = 1.50
+    max_anchor_counts = 5
+
+    def __init__(self):
+        super().__init__()
+        self._anchor_counts = []
+
+    def on_anchor(self, frame_id, prediction):
+        contour = mask_to_contour(prediction.mask)
+        if contour is None:
+            return
+        self._anchor_counts.append(self._anchor_preserving_vertex_count(prediction.mask, contour))
+        self._anchor_counts = self._anchor_counts[-self.max_anchor_counts :]
+
+    def propagate(self, prev, prev_gray, gray, velocity):
+        pred = super().propagate(prev, prev_gray, gray, velocity)
+        if pred.source != PiecewiseContourCleanLKStrategy.name:
+            return pred
+        return Prediction(pred.mask, pred.bbox, pred.confidence, self.name)
+
+    def _single_smooth_contour(self, mask, previous_area):
+        contour = mask_to_contour(mask)
+        if contour is None:
+            return np.zeros_like(mask, dtype=np.uint8)
+        contour = self._anchor_complexity_contour(mask, contour)
+        contour = self._limit_area(contour.astype(np.float32), previous_area)
+        out = np.zeros_like(mask, dtype=np.uint8)
+        cv2.drawContours(out, [contour.astype(np.int32)], -1, 1, cv2.FILLED)
+        return clean_mask(out)
+
+    def _anchor_complexity_contour(self, mask, contour):
+        perimeter = cv2.arcLength(contour, True)
+        fallback = self._approx(contour, perimeter, self.approx_epsilon_ratio)
+        if not self._anchor_counts:
+            return fallback
+        max_vertices = max(4, int(round(np.median(self._anchor_counts) * self.complexity_margin)))
+        if len(fallback) <= max_vertices:
+            return fallback
+        best = fallback
+        for ratio in self.anchor_candidates:
+            candidate = self._approx(contour, perimeter, ratio)
+            if len(candidate) > max_vertices:
+                continue
+            out = np.zeros_like(mask, dtype=np.uint8)
+            cv2.drawContours(out, [candidate.astype(np.int32)], -1, 1, cv2.FILLED)
+            if mask_iou(clean_mask(out), mask) >= self.current_min_iou:
+                best = candidate
+        return best
+
+    def _anchor_preserving_vertex_count(self, mask, contour):
+        perimeter = cv2.arcLength(contour, True)
+        best = self._approx(contour, perimeter, self.approx_epsilon_ratio)
+        for ratio in self.anchor_candidates:
+            candidate = self._approx(contour, perimeter, ratio)
+            out = np.zeros_like(mask, dtype=np.uint8)
+            cv2.drawContours(out, [candidate.astype(np.int32)], -1, 1, cv2.FILLED)
+            if mask_iou(clean_mask(out), mask) >= self.anchor_min_iou:
+                best = candidate
+        return len(best)
+
+    def _approx(self, contour, perimeter, ratio):
+        epsilon = max(0.5, float(ratio) * perimeter)
+        return cv2.approxPolyDP(contour, epsilon, True).astype(np.float32)
+
+
 class PiecewiseConfidenceCleanLKStrategy(PiecewiseContourCleanLKStrategy):
     """Piecewise LK with local confidence gating before contour cleanup."""
 
