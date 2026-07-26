@@ -1,0 +1,2 @@
+method,non_anchor_mask_iou,non_anchor_bbox_iou,offset1_mask_iou,offset9_mask_iou,fps
+lk_grabcut,0.7570648762679464,0.794397477640046,0.8287204858208921,0.6993788834252793,207.13831585878535

@@ -1,0 +1,2 @@
+method,non_anchor_mask_iou,non_anchor_bbox_iou,offset1_mask_iou,offset9_mask_iou,fps
+lk_color_region,0.7871003596682169,0.8530212557978101,0.8333198988681612,0.7555486578628131,324.1143224567072

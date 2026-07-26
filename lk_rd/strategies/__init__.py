@@ -5,6 +5,13 @@ from lk_rd.strategies.edge_snap import (
     LKMaskPointsEdgeShiftSmallStrategy,
 )
 from lk_rd.strategies.lk_mask_points import LKMaskPointsHighRansacStrategy, LKMaskPointsStrategy
+from lk_rd.strategies.grabcut_lk import (
+    LKColorRegionStrategy,
+    LKColorRegionStrictStrategy,
+    LKGrabCutConservativeStrategy,
+    LKGrabCutStrategy,
+    LKGrabCutWideStrategy,
+)
 from lk_rd.strategies.piecewise_lk import (
     PiecewiseAnchorShapeCleanLKStrategy,
     PiecewiseAnchorShapeCleanStrongLKStrategy,
@@ -32,6 +39,11 @@ STRATEGIES = {
     "lk_mask_points_edge_shift_small": LKMaskPointsEdgeShiftSmallStrategy,
     "lk_mask_points": LKMaskPointsStrategy,
     "lk_mask_points_high_ransac": LKMaskPointsHighRansacStrategy,
+    "lk_grabcut": LKGrabCutStrategy,
+    "lk_grabcut_conservative": LKGrabCutConservativeStrategy,
+    "lk_grabcut_wide": LKGrabCutWideStrategy,
+    "lk_color_region": LKColorRegionStrategy,
+    "lk_color_region_strict": LKColorRegionStrictStrategy,
     "lk_raw": RawForwardLKStrategy,
     "lk_raw_high_ransac": RawForwardLKHighRansacStrategy,
     "piecewise_lk": PiecewiseLKStrategy,

@@ -148,6 +148,14 @@ baseline was modified or an upstream dependency/runtime behavior changed.
   edge/contrast shift search.
 - `lk_mask_points_contour_snap`: mask-point LK plus local contour-point snapping
   along radial normals toward stronger image edges.
+- `lk_grabcut`, `lk_grabcut_conservative`, `lk_grabcut_wide`: raw contour LK
+  motion prior refined by seeded GrabCut inside a small ROI. The eroded LK core
+  is preserved, trusted forward-backward LK points are marked foreground, and
+  the result is rejected unless it still agrees with the LK prior.
+- `lk_color_region`, `lk_color_region_strict`: raw contour LK motion prior
+  refined by a lightweight foreground/background LAB color scorer. Foreground
+  seeds come from the LK core, background seeds from a ring outside the LK
+  contour, and only pixels connected to the core inside the LK band survive.
 - `piecewise_lk`: tracks contour points with LK, then moves each mask pixel by
   a weighted blend of nearby tracked contour-point shifts. This is a conservative
   non-global warp: less rigid than affine, less free-form than dense DIS. The
@@ -196,6 +204,14 @@ variant so far, but it does not fix the frame `140-149` drift slice; direct
 motion failure still needs better point support or local evidence rejection.
 Direct past-anchor shape/radial matching was much worse because stale anchor
 silhouettes get applied recursively.
+
+Current segmentation result on `V_DRONE_001`, stride 10:
+`lk_color_region` is the strongest non-AI strategy so far. Compared with frozen
+`lk_raw`, mask IoU improves from `0.757047` to `0.787100`, bbox IoU from
+`0.795215` to `0.853021`, and offset `+9` mask IoU from `0.698877` to
+`0.755549`. It also improves the frame `145-149` drift slice where raw LK grabs
+too much sky. GrabCut alone was much weaker unless heavily gated; color-region
+foreground/background scoring is a better fit for these tiny drone masks.
 
 Current edge-snap result on `V_DRONE_001`, stride 10: the simple edge objectives
 are not reliable enough yet. `lk_mask_points_edge_shift_large` helps isolated
