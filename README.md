@@ -39,6 +39,7 @@ Useful options:
 - `--stride`: anchor interval. `10` means frames `0, 10, 20, ...` reset from ground truth.
 - `--video-id`: benchmark video id, default `V_DRONE_001`.
 - `--output-dir`: where CSV/report/video outputs are written.
+- `--no-frame-images`: skip per-frame PNG overlays. By default, frame images are written to `frames/`.
 - `--write-video`: also write a thin overlay MP4.
 
 ## Architecture
@@ -179,6 +180,7 @@ The modular runner writes:
 - `by_offset.csv`: average mask/bbox IoU for each distance from anchor.
 - `config.json`: data and strategy settings used for the run.
 - `REPORT.md`: compact human-readable summary.
+- `frames/frame_XXXX_offset_Y.png`: per-frame thin overlay PNGs, written by default.
 - `V_DRONE_001_<strategy>_thin.mp4`: optional thin overlay video.
 
 Overlay colors in modular thin videos:

@@ -7,7 +7,7 @@ from pathlib import Path
 from lk_rd.config import BENCHMARK_DIR, VIDEO_ID
 from lk_rd.evaluation import by_offset, source_counts, summarize, write_csv
 from lk_rd.io import first_match, load_frames, load_reference, write_json
-from lk_rd.overlay import write_thin_overlay
+from lk_rd.overlay import write_frame_overlays, write_thin_overlay
 from lk_rd.runner import timed_run
 from lk_rd.strategies import STRATEGIES
 
@@ -20,6 +20,7 @@ def parse_args():
     parser.add_argument("--strategy", choices=sorted(STRATEGIES), default="lk_raw")
     parser.add_argument("--output-dir", type=Path, default=Path(__file__).resolve().parent / "results_modular")
     parser.add_argument("--max-frames", type=int, default=None)
+    parser.add_argument("--no-frame-images", action="store_true")
     parser.add_argument("--write-video", action="store_true")
     return parser.parse_args()
 
@@ -50,8 +51,17 @@ def main():
             "stride": args.stride,
             "strategy": strategy.name,
             "source_counts": sources,
+            "frame_images": not args.no_frame_images,
         },
     )
+    if not args.no_frame_images:
+        write_frame_overlays(
+            args.output_dir / "frames",
+            frames,
+            gt_masks,
+            predictions,
+            args.stride,
+        )
     if args.write_video:
         write_thin_overlay(
             args.output_dir / f"{args.video_id}_{strategy.name}_thin.mp4",

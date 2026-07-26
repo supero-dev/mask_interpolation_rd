@@ -14,6 +14,13 @@ def write_thin_overlay(path, frames, fps, gt_masks, predictions, stride):
     writer.release()
 
 
+def write_frame_overlays(output_dir, frames, gt_masks, predictions, stride):
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for frame_id, (frame, gt_mask, pred) in enumerate(zip(frames, gt_masks, predictions)):
+        path = output_dir / f"frame_{frame_id:04d}_offset_{frame_id % stride}.png"
+        cv2.imwrite(str(path), thin_overlay(frame, gt_mask, pred.mask, frame_id, stride))
+
+
 def thin_overlay(frame, gt_mask, pred_mask, frame_id, stride):
     out = frame.copy()
     draw_contour(out, gt_mask, (0, 255, 0))
@@ -38,4 +45,3 @@ def draw_contour(frame, mask, color):
     if contour is None:
         return
     cv2.drawContours(frame, [contour.astype(np.int32)], -1, color, 1, cv2.LINE_AA)
-
