@@ -1,0 +1,11 @@
+method,offset,mask_iou,bbox_iou
+piecewise_conf_clean_soft_lk,0,1.0,1.0
+piecewise_conf_clean_soft_lk,1,0.8327374029719434,0.8250178813934326
+piecewise_conf_clean_soft_lk,2,0.808743757832931,0.831553194920222
+piecewise_conf_clean_soft_lk,3,0.7871369580513565,0.812323796749115
+piecewise_conf_clean_soft_lk,4,0.7715345003394318,0.8266845981280009
+piecewise_conf_clean_soft_lk,5,0.7499167879737931,0.8008291880289714
+piecewise_conf_clean_soft_lk,6,0.7448592289776278,0.8000085651874542
+piecewise_conf_clean_soft_lk,7,0.7321687243527261,0.7865364293257395
+piecewise_conf_clean_soft_lk,8,0.7190701852949232,0.7709330836931865
+piecewise_conf_clean_soft_lk,9,0.7080942797724302,0.778176869948705

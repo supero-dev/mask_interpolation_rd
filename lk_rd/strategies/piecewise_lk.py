@@ -225,3 +225,118 @@ class PiecewiseContourCleanLKStrategy(PiecewiseLKStrategy):
         center = contour.reshape(-1, 2).mean(axis=0)
         points = center + (contour.reshape(-1, 2) - center) * scale
         return points.reshape(-1, 1, 2).astype(np.float32)
+
+
+class PiecewiseConfidenceCleanLKStrategy(PiecewiseContourCleanLKStrategy):
+    """Piecewise LK with local confidence gating before contour cleanup."""
+
+    name = "piecewise_conf_clean_lk"
+    support_threshold = 0.14
+    fb_error_scale = 2.0
+    intensity_error_scale = 40.0
+    approx_epsilon_ratio = 0.006
+
+    def propagate(self, prev, prev_gray, gray, velocity):
+        contour = mask_to_contour(prev.mask)
+        if contour is None or prev.bbox is None:
+            return self._fallback.propagate(prev, prev_gray, gray, velocity)
+        points = self._sample_contour(contour, max_points=128)
+        moved = self._lk_points_with_confidence(prev_gray, gray, points)
+        if moved is None:
+            return self._fallback.propagate(prev, prev_gray, gray, velocity)
+
+        src, dst, confidence = moved
+        if len(src) < 8:
+            return self._fallback.propagate(prev, prev_gray, gray, velocity)
+        warped = self._warp_supported_pixels(prev.mask, prev_gray, gray, src, dst, confidence)
+        warped = clean_mask(warped)
+        cleaned = self._single_smooth_contour(warped, int(prev.mask.sum()))
+        if not cleaned.any():
+            return self._fallback.propagate(prev, prev_gray, gray, velocity)
+        return Prediction(cleaned, mask_to_bbox(cleaned), 0.47, self.name)
+
+    def _lk_points_with_confidence(self, prev_gray, gray, points):
+        if len(points) < 3:
+            return None
+        next_points, status, err = cv2.calcOpticalFlowPyrLK(
+            prev_gray,
+            gray,
+            points.reshape(-1, 1, 2),
+            None,
+            winSize=(21, 21),
+            maxLevel=3,
+            criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 20, 0.02),
+        )
+        if next_points is None or status is None:
+            return None
+        valid = status.reshape(-1).astype(bool)
+        src = points[valid].astype(np.float32)
+        dst = next_points.reshape(-1, 2)[valid].astype(np.float32)
+        lk_err = np.zeros(len(src), dtype=np.float32)
+        if err is not None:
+            lk_err = err.reshape(-1)[valid].astype(np.float32)
+        if len(src) < 3:
+            return None
+
+        back_points, back_status, _ = cv2.calcOpticalFlowPyrLK(
+            gray,
+            prev_gray,
+            dst.reshape(-1, 1, 2),
+            None,
+            winSize=(21, 21),
+            maxLevel=3,
+            criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 20, 0.02),
+        )
+        if back_points is None or back_status is None:
+            fb_error = np.zeros(len(src), dtype=np.float32)
+        else:
+            fb_valid = back_status.reshape(-1).astype(bool)
+            fb_error = np.linalg.norm(back_points.reshape(-1, 2) - src, axis=1).astype(np.float32)
+            fb_error[~fb_valid] = self.fb_error_scale * 5.0
+
+        confidence = np.exp(-fb_error / self.fb_error_scale) * np.exp(-lk_err / 80.0)
+        keep = confidence >= 0.05
+        return src[keep], dst[keep], confidence[keep].astype(np.float32)
+
+    def _warp_supported_pixels(self, mask, prev_gray, gray, src, dst, confidence):
+        ys, xs = np.where(mask > 0)
+        if len(xs) == 0:
+            return np.zeros_like(mask, dtype=np.uint8)
+        pixels = np.stack([xs, ys], axis=1).astype(np.float32)
+        shifts = dst - src
+        nearest = self._nearest_indices(pixels, src, k=3)
+        moved = np.zeros_like(pixels)
+        support = np.zeros(len(pixels), dtype=np.float32)
+        for row, idx in enumerate(nearest):
+            anchors = src[idx]
+            distances = np.linalg.norm(anchors - pixels[row], axis=1)
+            weights = 1.0 / np.maximum(distances, 1.0)
+            weights /= weights.sum()
+            moved[row] = pixels[row] + (shifts[idx] * weights[:, None]).sum(axis=0)
+            support[row] = float((confidence[idx] * weights).sum())
+
+        xi = np.rint(moved[:, 0]).astype(np.int32)
+        yi = np.rint(moved[:, 1]).astype(np.int32)
+        valid = (xi >= 0) & (yi >= 0) & (xi < mask.shape[1]) & (yi < mask.shape[0])
+        prev_values = prev_gray[ys[valid], xs[valid]].astype(np.float32)
+        next_values = gray[yi[valid], xi[valid]].astype(np.float32)
+        intensity_support = np.exp(-np.abs(prev_values - next_values) / self.intensity_error_scale)
+        supported = support[valid] * intensity_support >= self.support_threshold
+
+        out = np.zeros_like(mask, dtype=np.uint8)
+        xv = xi[valid][supported]
+        yv = yi[valid][supported]
+        out[yv, xv] = 1
+        return out
+
+
+class PiecewiseConfidenceCleanSoftLKStrategy(PiecewiseConfidenceCleanLKStrategy):
+    name = "piecewise_conf_clean_soft_lk"
+    support_threshold = 0.09
+    approx_epsilon_ratio = 0.004
+
+
+class PiecewiseConfidenceCleanStrictLKStrategy(PiecewiseConfidenceCleanLKStrategy):
+    name = "piecewise_conf_clean_strict_lk"
+    support_threshold = 0.22
+    approx_epsilon_ratio = 0.010

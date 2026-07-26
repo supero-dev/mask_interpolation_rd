@@ -6,6 +6,9 @@ from lk_rd.strategies.edge_snap import (
 )
 from lk_rd.strategies.lk_mask_points import LKMaskPointsHighRansacStrategy, LKMaskPointsStrategy
 from lk_rd.strategies.piecewise_lk import (
+    PiecewiseConfidenceCleanLKStrategy,
+    PiecewiseConfidenceCleanSoftLKStrategy,
+    PiecewiseConfidenceCleanStrictLKStrategy,
     PiecewiseContourCleanLKStrategy,
     PiecewiseLKStrategy,
     PiecewiseSmoothContourLKStrategy,
@@ -23,6 +26,9 @@ STRATEGIES = {
     "lk_raw": RawForwardLKStrategy,
     "lk_raw_high_ransac": RawForwardLKHighRansacStrategy,
     "piecewise_lk": PiecewiseLKStrategy,
+    "piecewise_conf_clean_lk": PiecewiseConfidenceCleanLKStrategy,
+    "piecewise_conf_clean_soft_lk": PiecewiseConfidenceCleanSoftLKStrategy,
+    "piecewise_conf_clean_strict_lk": PiecewiseConfidenceCleanStrictLKStrategy,
     "piecewise_contour_clean_lk": PiecewiseContourCleanLKStrategy,
     "piecewise_smooth_contour_lk": PiecewiseSmoothContourLKStrategy,
 }

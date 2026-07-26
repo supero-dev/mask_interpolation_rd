@@ -158,6 +158,12 @@ baseline was modified or an upstream dependency/runtime behavior changed.
 - `piecewise_contour_clean_lk`: keeps the stronger `piecewise_lk` pixel motion,
   then extracts one largest contour, lightly simplifies it, fills it once, and
   caps area growth. This is the conservative smooth-contour variant.
+- `piecewise_conf_clean_soft_lk`, `piecewise_conf_clean_lk`,
+  `piecewise_conf_clean_strict_lk`: confidence-gated versions of
+  `piecewise_contour_clean_lk`. They reject locally unsupported pixels using
+  forward-backward LK consistency and local intensity consistency before the
+  single-contour cleanup. The strict variant drops more stale regions but may
+  remove real drone pixels.
 
 Current edge-snap result on `V_DRONE_001`, stride 10: the simple edge objectives
 are not reliable enough yet. `lk_mask_points_edge_shift_large` helps isolated
