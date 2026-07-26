@@ -48,6 +48,16 @@ def by_offset(name, predictions, gt_masks, gt_bboxes, stride):
     return out
 
 
+def source_counts(predictions):
+    counts = {}
+    for pred in predictions:
+        counts[pred.source] = counts.get(pred.source, 0) + 1
+    return [
+        {"source": source, "frames": frames}
+        for source, frames in sorted(counts.items())
+    ]
+
+
 def write_csv(path, rows):
     if not rows:
         path.write_text("")
@@ -61,4 +71,3 @@ def write_csv(path, rows):
 def mean(values):
     values = list(values)
     return float(sum(values) / len(values)) if values else 0.0
-

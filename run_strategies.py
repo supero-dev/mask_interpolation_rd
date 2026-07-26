@@ -5,7 +5,7 @@ import argparse
 from pathlib import Path
 
 from lk_rd.config import BENCHMARK_DIR, VIDEO_ID
-from lk_rd.evaluation import by_offset, summarize, write_csv
+from lk_rd.evaluation import by_offset, source_counts, summarize, write_csv
 from lk_rd.io import first_match, load_frames, load_reference, write_json
 from lk_rd.overlay import write_thin_overlay
 from lk_rd.runner import timed_run
@@ -38,8 +38,10 @@ def main():
 
     summary = [summarize(strategy.name, predictions, gt_masks, gt_bboxes, args.stride, elapsed)]
     offsets = by_offset(strategy.name, predictions, gt_masks, gt_bboxes, args.stride)
+    sources = source_counts(predictions)
     write_csv(args.output_dir / "summary.csv", summary)
     write_csv(args.output_dir / "by_offset.csv", offsets)
+    write_csv(args.output_dir / "source_counts.csv", sources)
     write_json(
         args.output_dir / "config.json",
         {
@@ -47,6 +49,7 @@ def main():
             "masks": str(mask_path),
             "stride": args.stride,
             "strategy": strategy.name,
+            "source_counts": sources,
         },
     )
     if args.write_video:
@@ -58,11 +61,11 @@ def main():
             predictions,
             args.stride,
         )
-    write_report(args.output_dir / "REPORT.md", summary[0], offsets)
+    write_report(args.output_dir / "REPORT.md", summary[0], offsets, sources)
     print(f"[done] {args.output_dir}")
 
 
-def write_report(path, summary, offsets):
+def write_report(path, summary, offsets, sources):
     lines = [
         "# Modular Strategy Benchmark",
         "",
@@ -78,6 +81,11 @@ def write_report(path, summary, offsets):
         "",
         "- "
         + ", ".join(f"+{row['offset']}={row['mask_iou']:.3f}" for row in offsets),
+        "",
+        "## Source Counts",
+        "",
+        "- "
+        + ", ".join(f"{row['source']}={row['frames']}" for row in sources),
     ]
     path.write_text("\n".join(lines) + "\n")
 
