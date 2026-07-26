@@ -136,6 +136,8 @@ baseline was modified or an upstream dependency/runtime behavior changed.
   limitation and lets different parts of the mask move differently. If DIS is
   unavailable or fails, it falls back to frozen `lk_raw`. The implementation
   caps propagated mask area to avoid recursive growth.
+- `lk_mask_points`: same affine/RANSAC mask warp as frozen `lk_raw`, but tracks
+  points sampled from the full mask interior instead of only contour points.
 - `piecewise_lk`: tracks contour points with LK, then moves each mask pixel by
   a weighted blend of nearby tracked contour-point shifts. This is a conservative
   non-global warp: less rigid than affine, less free-form than dense DIS. The
