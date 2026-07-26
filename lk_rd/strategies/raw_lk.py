@@ -10,6 +10,8 @@ class RawForwardLKStrategy(PropagationStrategy):
     """Frozen baseline: contour points + PyrLK + affine/RANSAC mask warp."""
 
     name = "lk_raw"
+    ransac_max_iters = 96
+    ransac_confidence = 0.98
 
     def propagate(self, prev, prev_gray, gray, velocity):
         points = self._contour_points(prev.mask, max_points=80)
@@ -61,8 +63,8 @@ class RawForwardLKStrategy(PropagationStrategy):
             dst,
             method=cv2.RANSAC,
             ransacReprojThreshold=reproj,
-            maxIters=96,
-            confidence=0.98,
+            maxIters=self.ransac_max_iters,
+            confidence=self.ransac_confidence,
         )
         if matrix is None or inliers is None or int(inliers.sum()) < min_points:
             return None
@@ -87,3 +89,10 @@ class RawForwardLKStrategy(PropagationStrategy):
         dx, dy = np.asarray(shift, dtype=np.float32)[:2]
         return np.array([[1.0, 0.0, dx], [0.0, 1.0, dy]], dtype=np.float32)
 
+
+class RawForwardLKHighRansacStrategy(RawForwardLKStrategy):
+    """Contour LK baseline with substantially higher affine RANSAC effort."""
+
+    name = "lk_raw_high_ransac"
+    ransac_max_iters = 2000
+    ransac_confidence = 0.999

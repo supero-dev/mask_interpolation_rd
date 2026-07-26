@@ -138,6 +138,10 @@ baseline was modified or an upstream dependency/runtime behavior changed.
   caps propagated mask area to avoid recursive growth.
 - `lk_mask_points`: same affine/RANSAC mask warp as frozen `lk_raw`, but tracks
   points sampled from the full mask interior instead of only contour points.
+- `lk_raw_high_ransac`: contour-point LK with `maxIters=2000` and
+  `confidence=0.999` for affine RANSAC.
+- `lk_mask_points_high_ransac`: mask-point LK with `maxIters=2000` and
+  `confidence=0.999` for affine RANSAC.
 - `piecewise_lk`: tracks contour points with LK, then moves each mask pixel by
   a weighted blend of nearby tracked contour-point shifts. This is a conservative
   non-global warp: less rigid than affine, less free-form than dense DIS. The

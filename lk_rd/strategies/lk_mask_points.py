@@ -51,3 +51,11 @@ class LKMaskPointsStrategy(RawForwardLKStrategy):
         if not sampled:
             return np.zeros((0, 2), dtype=np.float32)
         return np.asarray(sampled, dtype=np.float32)[:max_points]
+
+
+class LKMaskPointsHighRansacStrategy(LKMaskPointsStrategy):
+    """Mask-point LK with substantially higher affine RANSAC effort."""
+
+    name = "lk_mask_points_high_ransac"
+    ransac_max_iters = 2000
+    ransac_confidence = 0.999
