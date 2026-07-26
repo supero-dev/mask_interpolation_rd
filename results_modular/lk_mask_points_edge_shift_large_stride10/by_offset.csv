@@ -1,0 +1,11 @@
+method,offset,mask_iou,bbox_iou
+lk_mask_points_edge_shift_large,0,1.0,1.0
+lk_mask_points_edge_shift_large,1,0.8186267236986384,0.8246460636456807
+lk_mask_points_edge_shift_large,2,0.7987513698114669,0.8270661254723867
+lk_mask_points_edge_shift_large,3,0.7784466237773091,0.810092423359553
+lk_mask_points_edge_shift_large,4,0.7537339993194888,0.8072476585706075
+lk_mask_points_edge_shift_large,5,0.7320847112360693,0.7748565256595612
+lk_mask_points_edge_shift_large,6,0.7266836698407659,0.7772058308124542
+lk_mask_points_edge_shift_large,7,0.7057079298673126,0.7701605757077535
+lk_mask_points_edge_shift_large,8,0.6953118777298422,0.764136544863383
+lk_mask_points_edge_shift_large,9,0.6784615702892426,0.7743379890918731

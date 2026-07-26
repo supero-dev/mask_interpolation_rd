@@ -142,10 +142,22 @@ baseline was modified or an upstream dependency/runtime behavior changed.
   `confidence=0.999` for affine RANSAC.
 - `lk_mask_points_high_ransac`: mask-point LK with `maxIters=2000` and
   `confidence=0.999` for affine RANSAC.
+- `lk_mask_points_edge_shift_small`: mask-point LK plus a small whole-mask
+  edge/contrast shift search.
+- `lk_mask_points_edge_shift_large`: mask-point LK plus a wider whole-mask
+  edge/contrast shift search.
+- `lk_mask_points_contour_snap`: mask-point LK plus local contour-point snapping
+  along radial normals toward stronger image edges.
 - `piecewise_lk`: tracks contour points with LK, then moves each mask pixel by
   a weighted blend of nearby tracked contour-point shifts. This is a conservative
   non-global warp: less rigid than affine, less free-form than dense DIS. The
   implementation caps propagated mask area to avoid recursive growth.
+
+Current edge-snap result on `V_DRONE_001`, stride 10: the simple edge objectives
+are not reliable enough yet. `lk_mask_points_edge_shift_large` helps isolated
+frames such as `142` and `144`, but all edge-snap variants reduce aggregate IoU.
+The next edge-refinement attempt should be gated by a stronger acceptance test
+rather than always trusting the local edge score.
 
 ## Adding a New Strategy
 

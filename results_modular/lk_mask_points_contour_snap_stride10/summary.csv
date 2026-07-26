@@ -1,0 +1,2 @@
+method,non_anchor_mask_iou,non_anchor_bbox_iou,offset1_mask_iou,offset9_mask_iou,fps
+lk_mask_points_contour_snap,0.5577570337146521,0.6617302238941193,0.7672358129263336,0.38767302015091143,150.59163116748496
