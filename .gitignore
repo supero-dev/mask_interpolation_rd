@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+
+# Keep generated videos/images local; CSV/Markdown reports may be committed when useful.
+results/**/*.mp4
+results/**/*.png
+results_modular/**/*.mp4
+results_modular/**/*.png
+
