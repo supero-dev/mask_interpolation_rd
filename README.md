@@ -152,6 +152,12 @@ baseline was modified or an upstream dependency/runtime behavior changed.
   a weighted blend of nearby tracked contour-point shifts. This is a conservative
   non-global warp: less rigid than affine, less free-form than dense DIS. The
   implementation caps propagated mask area to avoid recursive growth.
+- `piecewise_smooth_contour_lk`: tracks/resamples contour points with LK, applies
+  local piecewise shifts to the ordered contour, smooths the contour, then fills
+  one polygon. This avoids internal holes and reduces serrated mask boundaries.
+- `piecewise_contour_clean_lk`: keeps the stronger `piecewise_lk` pixel motion,
+  then extracts one largest contour, lightly simplifies it, fills it once, and
+  caps area growth. This is the conservative smooth-contour variant.
 
 Current edge-snap result on `V_DRONE_001`, stride 10: the simple edge objectives
 are not reliable enough yet. `lk_mask_points_edge_shift_large` helps isolated
